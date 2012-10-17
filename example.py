@@ -34,3 +34,22 @@ for ride in st.rides():
             'Speed: %f mph' % \
             (segment.name, segment.detail.moving_time / 60.0, \
             segment.detail.average_speed * 0.000621))
+
+"""
+We can also get a lot of details data points from a ride.
+"""
+if len(st.rides()) > 0:
+    ride = st.rides()[0]
+    
+    print 'Max altitude: %sm.' % min(ride.stream.altitude)
+    print 'Max altitude: %sm.' % max(ride.stream.altitude)
+    
+    if len(ride.stream.temp) > 0:
+        # Calculate the average (in Celsius)
+        c = sum(ride.stream.temp) / len(ride.stream.temp)
+        
+        # Convert the Celsius average to Fahrenheit
+        f = ((c * 9) / 5) + 32
+        
+        print 'Avg temp: %s Fahrenheit' % f
+    

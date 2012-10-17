@@ -35,7 +35,7 @@ class StravaObject(object):
     def __init__(self, oid):
         self._id = oid
 
-    def load(self, url, key):
+    def load(self, url, key=None):
         if sys.version_info < (3, 0):
             try:
                 req = urllib2.Request(BASE_API + url)
@@ -50,7 +50,10 @@ class StravaObject(object):
         txt = rsp.read().decode('utf-8')
 
         try:
-            return json.loads(txt)[key]
+            if key is not None:
+                return json.loads(txt)[key]
+            else:
+                return json.loads(txt)
         except (ValueError, KeyError) as e:
             raise APIError("%s: parsing response failed: %s" % (url, e))
 
@@ -81,6 +84,9 @@ class Athlete(StravaObject):
             out.append(Ride(ride["id"], ride["name"]))
 
         return out
+        
+    def ride(self, ride_id):
+        return next((ride for ride in self.rides() if ride.id == ride_id), None)
 
     def ride_stats(self, days=7):
         """Get number of rides, time, and distance for the past N days."""
@@ -107,6 +113,7 @@ class Ride(StravaObject):
         self._name = name
         self._detail = None
         self._segments = []
+        self._stream = None
         
     @property
     def name(self):
@@ -117,6 +124,12 @@ class Ride(StravaObject):
         if not self._detail:
             self._detail = RideDetail(self.id)
         return self._detail
+        
+    @property
+    def stream(self):
+        if not self._stream:
+            self._stream = RideStream(self.id)
+        return self._stream
 
     @property
     def segments(self):
@@ -124,6 +137,105 @@ class Ride(StravaObject):
             for effort in self.load("/rides/%s/efforts" % self.id, "efforts"):
                 self._segments.append(Segment(effort))
         return self._segments
+        
+        
+class RideStream(StravaObject):
+    """Detailed data points for a single ride.
+        
+    Possible keys returned from Strava:
+        altitude
+        altitude_original
+        cadence
+        distance
+        grade_smooth
+        heartrate
+        latlng
+        moving
+        outlier
+        resting
+        temp
+        time
+        total_elevation
+        velocity_smooth
+        watts_calc
+    """
+    def __init__(self, oid):
+        super(RideStream, self).__init__(oid)
+        self._attr = self.load('/streams/%s' % oid)
+    
+    @property
+    def altitude(self):
+        return self.__try_get_values('altitude')
+        
+    @property
+    def altitude_original(self):
+        return self.__try_get_values('altitiude_original')
+        
+    @property
+    def cadence(self):
+        return self.__try_get_values('cadence')
+    
+    @property
+    def distance(self):
+    	return self.__try_get_values('distance')
+    
+    @property
+    def grade_smooth(self):
+        return self.__try_get_values('grade_smooth')
+    
+    @property
+    def heartrate(self):
+    	return self.__try_get_values('heartrate')
+    
+    @property
+    def latlng(self):
+        return self.__try_get_values('latlng')
+    
+    @property
+    def moving(self):
+        return self.__try_get_values('moving')
+    
+    @property
+    def outlier(self):
+        return self.__try_get_values('outlier')
+    
+    @property
+    def resting(self):
+        return self.__try_get_values('resting')
+    
+    @property
+    def temp(self):
+    	return self.__try_get_values('temp')
+    
+    @property
+    def time(self):
+        return self.__try_get_values('time')
+    
+    @property
+    def total_elevation(self):
+    	return self.__try_get_values('total_elevation')
+    
+    @property
+    def watts_calc(self):
+    	return self.__try_get_values('watts_calc')
+    
+    @property
+    def velocity_smooth(self):
+    	return self.__try_get_values('velocity_smooth')
+        
+    @property
+    def raw_data(self):
+        return self._attr
+        
+    def __try_get_values(self, key):
+        # Not every rider has hardware to track every data point.
+        # Need to make sure the requested data point is in
+        # the stream before accessing it. Return an empty list
+        # if the requested key isn't found in the stream.
+        if key in self._attr:
+            return self._attr[key]
+        else:
+            return []
 
 
 class RideDetail(StravaObject):
